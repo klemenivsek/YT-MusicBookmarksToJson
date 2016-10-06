@@ -1,0 +1,99 @@
+# ----------------------
+# ------SETTINGS--------
+# ----------------------
+
+#Choose file with bookmarks to import
+BOOKMARK_FILE = "bookmarks.html"
+#Choose output json file to write to
+JSON_FILE = "data.json"
+#Choose website to parse
+WEBSITE = "youtube.com"
+#Choose encoding
+ENCODING = 'UTF-8'
+
+# -----------------------
+# ------ MODULES --------
+# -----------------------
+
+def generateJson(d, f):
+    import codecs, json
+    with codecs.open(f,'w',ENCODING) as outfile:
+        json.dump(d, outfile,ensure_ascii=False,indent=4)
+    return True
+
+
+#TO_DO else: AttributeError NOT WORKING!
+def sortJsonByArtist(dataSets):
+    i = 0
+    jsonReadyData = {}
+    for id,data in dataSets.items():
+        try:
+            #data[1] = title, data[2]=link, data[0]=artist
+            if(data[0] not in jsonReadyData.keys()):
+                jsonReadyData[data[0]] = {id:[data[1], data[2]]}
+
+            else:
+                #NOT WORKING
+                jsonReadyData[data[0]] = jsonReadyData.get(data[0], "-").update({id:[data[1], data[2]]})
+
+        except AttributeError:
+            continue
+        i+=1
+    generateJson(jsonReadyData, JSON_FILE)
+    return i
+
+def findAllLinks(f):
+    import sys
+    from bs4 import BeautifulSoup
+    sys.setrecursionlimit(10000)
+    soup = BeautifulSoup(open(f, encoding=ENCODING), "html.parser")
+    return soup.find_all('a')
+
+def parseWebsiteLink(link, site):
+    if(link.get('href').split('.', 1)[1].startswith(site)):
+        website = link.get('href').split('.', 1)[1]
+        id = (website.split("?v=",1)[1])[:11]
+        artist, title = link.get_text()\
+            .replace('//','-')\
+            .replace('/','-')\
+            .replace(':','-')\
+            .replace('—', '-')\
+            .replace('|', '-')\
+            .replace('\"', '')\
+            .replace('\'', '')\
+            .split('-',1)
+        title = title[:-10]
+        if(title == ""):
+            title = artist
+            artist = "-"
+        if(artist == ""):
+            artist = "-"
+        return "true", id, artist.strip(), title.strip(),link.get('href').strip()
+    else:
+        return "false"
+
+
+
+
+
+
+# ---------------------
+# ------ START --------
+# ---------------------
+
+listOfLinks = {}
+i = 1
+for link in findAllLinks(BOOKMARK_FILE):
+    try:
+        isYoutubeLink, id, artist, title, url = parseWebsiteLink(link, WEBSITE)
+        if(isYoutubeLink == "true"):
+            listOfLinks[id] = artist, title, url
+            i+=1
+    except IndexError:
+        continue
+generateJson(listOfLinks, JSON_FILE)
+print("Links added to \"",JSON_FILE,"\": ",i,sep="")
+
+
+
+
